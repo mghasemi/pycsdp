@@ -1,5 +1,6 @@
 from libc.stdlib cimport malloc, free
-cdef extern from "include/declarations.h":
+
+cdef extern from 'declarations.h':
 	
 	cdef enum blockcat:
 		DIAG
