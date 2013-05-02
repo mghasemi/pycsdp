@@ -34,9 +34,9 @@ class sdp:
         
         try:
             from sage import matrix
-            self.SAGE_MATRIX_TYPE=[sage.matrix.matrix_integer_dense.Matrix_integer_dense,
-                            sage.matrix.matrix_rational_dense.Matrix_rational_dense,
-                            sage.matrix.matrix_generic_dense.Matrix_generic_dense]#,
+            self.SAGE_MATRIX_TYPE=[matrix.matrix_integer_dense.Matrix_integer_dense,
+                            matrix.matrix_rational_dense.Matrix_rational_dense,
+                            matrix.matrix_generic_dense.Matrix_generic_dense]#,
                             #sage.matrix.matrix_real_double_dense.Matrix_real_double_dense]
             self.SageAvailable = True
         except:
@@ -292,12 +292,20 @@ class sdp:
             for elmnt in a:
                 aTranspose.append([elmnt])
             acvxopt = self.matrix_converter(aTranspose, 'cvxopt')
-                        
+            
             if 'detail' in self.Options:
                 solvers.options['show_progress'] = self.Options['detail']
             else:
                 solvers.options['show_progress'] = False
             
+            if 'Iterations' in self.Options:
+                solvers.options['maxiters'] = max(1, self.Options['Iterations'])
+            else:
+                solvers.options['maxiters'] = 100
+            if 'refinement' in self.Options:
+                solvers.options['refinement'] = max(1, self.Options['refinement'])
+            else:
+                solvers.options['refinement'] = 1
             start1 = time()
             start2= clock()
             
@@ -333,14 +341,15 @@ class sdp:
             for i in range(self.num_constraints):
                 for idx in range(self.num_blocks):
                     A[i][idx] = self.matrix_converter(A[i][idx], 'list')
+            b = self.matrix_converter(a,'list')
             start1 = time()
             start2= clock()
             try:
-                sol = py_csdp(C, A, a)
+                sol = py_csdp(C, A, b)
                 elapsed1 = (time() - start1)
                 elapsed2 = (clock() - start2)
-                if sol['message'] == 'SDP failed.':
-                    self.Info={'Status':'Infeasible'}
+                if sol['message'] != 'Optimal solution found':
+                    self.Info={'Status':sol['message']}
                 else:
                     self.Info = {'Status':'Optimal', 'DObj':sol['dual'],
                     'PObj':sol['primal'], 'Wall':elapsed1, 'CPU':elapsed2}

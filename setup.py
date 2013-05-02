@@ -5,7 +5,7 @@ from Cython.Distutils import build_ext
 import os
 
 SAGE_LIB = os.environ['SAGE_LOCAL']+'/lib'
-CSDP_INCLUDES = os.environ['SAGE_ROOT'] + '/spkg/build/csdp-6.2/src/include/csdp'
+CSDP_INCLUDES = os.environ['SAGE_LOCAL'] + '/include/csdp'
 
 sourcefiles = ['pycsdp.pyx']
 setup(
