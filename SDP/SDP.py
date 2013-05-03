@@ -8,7 +8,7 @@ class sdp:
     """
     sdp class:
         
-        Provides a simple unified interface for SDP solvers.
+        Provides a simple unified interface for various SDP solvers.
         Currently supports: 
                 'cvxopt'
                 'csdp'

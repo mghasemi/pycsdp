@@ -1,0 +1,8 @@
+AUTHORS:
+    Dmitrii V Pasechnik
+    Email:    dima@ntu.edu.sg
+    Homepage: http://www.ntu.edu.sg/home/dima/
+    
+    Mehdi Ghasemi
+    Email:    mghasemi@ntu.edu.sg
+    Homepage: http://sites.google.com/site/mehdighasemi/
