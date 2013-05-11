@@ -61,7 +61,7 @@ class sdp:
             CSDP_SOLVER = False
             ## Check for availability of CSDP
             try:
-                from pycsdp import py_csdp, CSDP_SOLVER
+                from cpycsdp import cpycsdp, CSDP_SOLVER
                 if not CSDP_SOLVER:
                     print "CSDP is not available."
                     return
@@ -334,33 +334,65 @@ class sdp:
             if not self.Csdp_Available:
                 print "CSDP is not available."
                 return
-            from pycsdp import py_csdp
             admissible_types = [type(numpy.matrix([])), type(list())]
             for idx in range(self.num_blocks):
-				C[idx] = self.matrix_converter(C[idx], 'list')
+				C[idx] = self.matrix_converter(C[idx], 'numpy')
             for i in range(self.num_constraints):
                 for idx in range(self.num_blocks):
-                    A[i][idx] = self.matrix_converter(A[i][idx], 'list')
-            b = self.matrix_converter(a,'list')
+                    A[i][idx] = self.matrix_converter(A[i][idx], 'numpy')
+            b = list(a)#self.matrix_converter(a,'numpy')
             start1 = time()
             start2= clock()
-            try:
-                sol = py_csdp(C, A, b)
+            #try:
+            if True:
+                sol = self.cpycsdp(C, b, A)
                 elapsed1 = (time() - start1)
                 elapsed2 = (clock() - start2)
-                if sol['message'] != 'Optimal solution found':
-                    self.Info={'Status':sol['message']}
+                if sol['code'] >= 4:
+                    status = 'Infeasible'
                 else:
-                    self.Info = {'Status':'Optimal', 'DObj':sol['dual'],
+                    status = 'Optimal'
+                self.Info = {'Status':status, 'DObj':sol['dual'],
                     'PObj':sol['primal'], 'Wall':elapsed1, 'CPU':elapsed2}
-                    self.Info['y'] = self.matrix_converter(sol['y'], 'numpy')
-                    self.Info['Z'] = []
-                    for ds in sol['Z']:
-                        self.Info['Z'].append(self.matrix_converter(ds, 'numpy'))
-                    self.Info['X'] = []
-                    for ds in sol['X']:
-                        self.Info['X'].append(self.matrix_converter(ds, 'numpy'))
-            except:
-                self.Info={'Status':'Infeasible'}
+                self.Info['y'] = self.matrix_converter(sol['y'], 'numpy')
+                self.Info['Z'] = []
+                for ds in sol['Z']:
+                    self.Info['Z'].append(self.matrix_converter(ds, 'numpy'))
+                self.Info['X'] = []
+                for ds in sol['X']:
+                    self.Info['X'].append(self.matrix_converter(ds, 'numpy'))
+            #except:
+            #    self.Info={'Status':'Infeasible'}
         
         self.Info['solver'] = self.SOLVER
+        
+    def cpycsdp(self, C, a, A):
+        from cpycsdp import cpycsdp
+        d=[]
+        # Number of blocks
+        d.append(len(C))
+        # Number of constraints
+        d.append(len(A))
+        flag = 0
+        a = numpy.insert(a, 0, 0)
+        a_csdp = numpy.array(a, dtype = numpy.float64)
+        for Cblk in C:
+            d.append(len(Cblk))
+            temp_block = numpy.matrix(Cblk)
+            if flag == 0:
+                C_csdp = numpy.array(numpy.reshape(temp_block, temp_block.shape[0]*temp_block.shape[1], order='F'), dtype=numpy.float64)
+            else:
+                C_csdp = numpy.append(C_csdp, numpy.array(numpy.reshape(temp_block, temp_block.shape[0]*temp_block.shape[1], order='F'), dtype=numpy.float64))
+            flag += 1
+        d_csdp = numpy.array(d)
+        flag = 0
+        for Cns in A:
+            for cns_blk in Cns:
+                temp_block = numpy.matrix(cns_blk)
+                if flag == 0:
+                    A_csdp = numpy.array(numpy.reshape(temp_block, temp_block.shape[0]*temp_block.shape[1], order='F'))
+                else:
+                    A_csdp = numpy.append(A_csdp, numpy.array(numpy.reshape(temp_block, temp_block.shape[0]*temp_block.shape[1], order='F')))
+                flag+=1
+        return cpycsdp(C_csdp, A_csdp, a_csdp, d_csdp)
+        

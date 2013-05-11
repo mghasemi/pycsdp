@@ -1,6 +1,6 @@
 
 ====================
-PyCsdp & SDP
+cpysdp & SDP
 ====================
 
 This module provides basic general features for semidefinite programming
@@ -11,7 +11,7 @@ One can include these modules like this::
 
     #!/usr/bin/env python
 
-    from from pycsdp import py_csdp
+    from from cpycsdp import cpycsdp
     from SDP import SDP
 
 	
@@ -21,19 +21,19 @@ In Sage -sh mode, simply run
 	
 	python setup.py build_ext install
 
-PyCsdp
+cpysdp
 ====================
 
 This is an interface for CSDP written in Cython based on the optional 
 Sage compatible installation of CSDP. The main purpose of PyCsdp is to
 define the 'easy_sdp' function of CSDP which provides a convenient way
 of solving semidefinite programs, for Sage. The Sage version of 
-'easy_sdp' is the python 'py_csdp' function.
+'easy_sdp' is the python 'cpycsdp' function.
 
-* py_csdp
+* cpycsdp
 This function takes three arguments as input::
 
-	py_csdp(C, A, a)
+	cpycsdp(C, A, a)
 	
 and returns a python dictionary consist of output data of 'easy_sdp'.
 This function aims to solve a primal or dual semidefinite program in the
@@ -71,11 +71,11 @@ following form:
 Arguments
 --------------------
 1. 'C' is a python list C = [C1,..., Cm] where 'C1' .... 'Cm' are 2-dim 
-python lists defining the block matrices as are shown above.
+numpy matrices defining the block matrices as are shown above.
 
 2. 'A' is a python list of block matrices [A1,..., Ak] where each 'Ai'
 is a python list of the similar structure of 'C'. In other words,
-Ai = [Ai1,..., Aim], where 'Aij' is a matrix of the size of 'Cj'.
+Ai = [Ai1,..., Aim], where 'Aij' is a numpy matrix of the size of 'Cj'.
 
 3. 'a' is 1-dim python list. Simply a=[a1,..., am] as is shown above.
 

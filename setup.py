@@ -2,12 +2,13 @@ from distutils.core import setup
 from distutils.extension import Extension
 from Cython.Distutils import build_ext
 
+import numpy
 import os
 
 SAGE_LIB = os.environ['SAGE_LOCAL']+'/lib'
 CSDP_INCLUDES = os.environ['SAGE_LOCAL'] + '/include/csdp'
 
-sourcefiles = ['pycsdp.pyx']
+sourcefiles = ['cpycsdp.pyx']
 setup(
     name = 'SDP',
     version = '1.0.0',
@@ -20,14 +21,14 @@ setup(
     long_description = open('README.txt').read(),
 )
 
-ext_modules = [Extension("pycsdp", sourcefiles,
+ext_modules = [Extension("cpycsdp", sourcefiles,
 				library_dirs = [SAGE_LIB],
 				define_macros = [('NOSHORTS',None)],
-				include_dirs = [CSDP_INCLUDES],
+				include_dirs = [CSDP_INCLUDES, numpy.get_include()],
 				libraries = ["sdp", "lapack", "blas", "gfortran", "m"])]
 
 setup(
-	name = 'pycsdp',
+	name = 'cpycsdp',
 	version = '1.0.0',
 	author = ['Dmitrii V Pasechnik', 'Mehdi Ghasemi'],
 	author_email = ['dima@ntu.edu.sg', 'mehdi.ghasemi@gmail.com'],
