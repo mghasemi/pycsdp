@@ -1,5 +1,6 @@
 import numpy
 import string
+from sage.matrix.constructor import Matrix
 
 from array import array
 from time import time, clock
@@ -120,25 +121,10 @@ class sdp:
                 return M.numpy()
                 
             elif l_output_type == 'list':
-                n=M.ncols()
-                m=M.nrows()
-                CM=[]
-                for j in range(n):
-                    RW=[]
-                    for i in range(m):
-                        RW.append(M[i,j]);
-                    CM.append(RW)
-                return CM
+                return list(M)
                 
             elif l_output_type == 'cvxopt':
-                n=M.ncols()
-                m=M.nrows()
-                CM=[]
-                for j in range(n):
-                    for i in range(m):
-                        CM.append(M[i,j])
-                CC=Mtx(array('d', CM), (m,n))
-                return CC
+                return Mtx(M.numpy(), tc='d')
         
         elif input_type is numpy.matrixlib.defmatrix.matrix:
             ## Converting Numpy matrix to others
@@ -155,14 +141,7 @@ class sdp:
                 return M.tolist()
                 
             elif l_output_type == 'cvxopt':
-                n=M.shape[1]
-                m=M.shape[0]
-                CM=[]
-                for j in range(n):
-                    for i in range(m):
-                        CM.append(M[i,j])
-                CC=Mtx(array('d', CM), (m,n))
-                return CC
+                return Mtx(M, tc='d')
         
         elif input_type is list:
             ## Converting Python list to others
@@ -181,26 +160,25 @@ class sdp:
             elif l_output_type == 'cvxopt':
                 n=len(M[0])
                 m=len(M)
-                CM=[]
-                for j in range(n):
-                    for i in range(m):
-                        CM.append(M[i][j])
-                CC=Mtx(array('d', CM), (m,n))
-                return CC
+                return Mtx(numpy.array(M).reshape(m*n, order='F'), size=(m, n), tc='d')
+        
         elif input_type is type(Mtx()):
             ## Converting CvxOpt matrix to others
             if l_output_type == 'sage':
                 if self.SageAvailable:
                     m,n = M.size
-                    return matrix(n,list(M)).transpose()
+                    return Matrix(n,list(M)).transpose()
                 else:
                     return M
+            
             elif l_output_type == 'numpy':
                 m,n = M.size
                 return numpy.array(list(M)).reshape(m,n)
+            
             elif l_output_type == 'list':
                 m,n = M.size
                 return matrix(n,list(M)).transpose().tolist()
+            
             elif l_output_type == 'cvxopt':
                 return M
         
@@ -346,11 +324,11 @@ class sdp:
             for i in range(self.num_constraints):
                 for idx in range(self.num_blocks):
                     A[i][idx] = self.matrix_converter(A[i][idx], 'numpy')
-            b = list(a)#self.matrix_converter(a,'numpy')
+            b = list(a)
             start1 = time()
             start2= clock()
-            #try:
-            if True:
+            try:
+            #if True:
                 sol = self.cpycsdp(C, b, A)
                 elapsed1 = (time() - start1)
                 elapsed2 = (clock() - start2)
@@ -367,12 +345,18 @@ class sdp:
                 self.Info['X'] = []
                 for ds in sol['X']:
                     self.Info['X'].append(self.matrix_converter(ds, 'numpy'))
-            #except:
-            #    self.Info={'Status':'Infeasible'}
+            except:
+                self.Info={'Status':'Infeasible'}
         
         self.Info['solver'] = self.SOLVER
         
     def cpycsdp(self, C, a, A):
+        """
+        Translates the input sdp into the format acceptable by the Cython module
+        cpycsdp. One should avoid using this method individually, but instead call
+        the solver method for 'csdp' solver. 
+        """
+        
         from cpycsdp import cpycsdp
         d=[]
         # Number of blocks
