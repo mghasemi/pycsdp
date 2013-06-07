@@ -306,6 +306,12 @@ class sdp:
                 solvers.options['refinement'] = max(1, self.Options['refinement'])
             else:
                 solvers.options['refinement'] = 1
+            if 'reltol' in self.Options:
+                solvers.options['reltol'] = self.Options['reltol']
+            if 'feastol' in self.Options:
+                solvers.options['feastol'] = self.Options['feastol']
+            if 'abstol' in self.Options:
+                solvers.options['abstol'] = self.Options['abstol']
             start1 = time()
             start2= clock()
             
