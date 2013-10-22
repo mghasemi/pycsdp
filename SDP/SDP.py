@@ -1,14 +1,18 @@
 import numpy
 import string
 from scipy.linalg import block_diag
+from sage.structure.sage_object import SageObject
 from sage.matrix.constructor import Matrix
 from sage.rings.real_mpfr import *
 from sage.rings.integer import *
+from sage.misc.latex import latex
 
 from array import array
 from time import time, clock
 
-##########################  ##########################
+########################## Auxiliary functions ##########################
+
+########## Matrix Converter ##########
 def matrix_converter(M, output_type):
     """
     Converts a matrix of a given type to another type.
@@ -110,6 +114,7 @@ def matrix_converter(M, output_type):
         elif l_output_type == 'cvxopt':
             return M
 
+########## Chech if the argument is a number or not ##########
 def is_constant(c):
     """
     Determines whether the input argument is a constant number or not.
@@ -119,6 +124,7 @@ def is_constant(c):
         return True
     return False
 
+########## Matlab matrix constructor ##########
 def MatlabBlockMat(M):
     """
     Generates a code block to define a MATLAB block matrix.
@@ -144,6 +150,452 @@ def MatlabBlockMat(M):
             code += ", "
     code += ")"
     return code
+
+#########################################################################
+
+class FormalVariable:
+    """
+    Is a type of variable to implement formal linear expression and 
+    (in)equalities with arbitrary coefficients.
+    """
+    
+    def __init__(self, obj = None, name = ""):
+        """
+        Initiate the instance which could be attached to another object.
+        Formal variables attached to different objects cannot appear at 
+        the same time in an expression.
+        """
+        
+        self._dict = {}
+        self.obj = obj
+        self._hasname = (len(name) >0)
+        self._name = name
+    
+    def __getitem__(self, i):
+        """
+        Returns the symbolic variable corresponding to the key.
+        """
+        
+        if self._dict.has_key(i):
+            return self._dict[i]
+        else:
+            v = FormalExpression({i:1}, obj = self.obj)
+            self._dict[i] = v
+            return v
+    
+    def __str__(self):
+        """
+        Generates the output on printing.
+        """
+        
+        if self._hasname:
+            return name
+        else:
+            return "x"
+    
+    def __repr__(self):
+        """
+        Returns a representation of self.
+        """
+        
+        if self._hasname:
+            return "A formal variable named "+self._name+"."
+        else:
+            return "A formal variable."
+
+class FormalExpression:
+    """
+    
+    """
+    
+    def __init__(self, elm, sym = 'x', obj = None):
+        """
+        
+        """
+        
+        self._dict = elm
+        self.symbol = sym
+        self.obj = obj
+        self.reduced = False
+        self.const = False
+        self.cmpsym = ""
+        self.LH = {}
+        self.RH = {}
+    
+    def reduce(self):
+        """
+        
+        """
+        
+        if self.const:
+            self.reduced = True
+    
+    def __add__(self,x):
+        """
+        
+        """
+        
+        if not isinstance(x,FormalExpression):
+            r_dict = self._dict
+            if r_dict.has_key(-1):
+                r_dict[-1] += x
+            else:
+                r_dict[-1] = x
+            return FormalExpression(r_dict, sym = self.symbol, obj = self.obj)
+        if self.obj != x.obj:
+            raise ValueError("Formal vairables of different objects cannot be added")
+        keys1 = self._dict.keys()
+        keys2 = x._dict.keys()
+        r_dict = {}
+        for idx in keys1:
+            if idx in keys2:
+                r_dict[idx] = self._dict[idx] + x._dict[idx]
+            else:
+                r_dict[idx] = self._dict[idx]
+        for idx in keys2:
+            if r_dict.has_key(idx):
+                pass
+            else:
+                r_dict[idx] = x._dict[idx]
+        return FormalExpression(r_dict, sym = self.symbol, obj = self.obj)
+    
+    def __sub__(self,x):
+        """
+        
+        """
+        
+        if not isinstance(x,FormalExpression):
+            r_dict = self._dict#dict([(id,-coeff) for (id, coeff) in self._dict.iteritems()])
+            if r_dict.has_key(-1):
+                r_dict[-1] = -x + r_dict[-1]
+            else:
+                r_dict[-1] = -x
+            return FormalExpression(r_dict, sym = self.symbol, obj = self.obj)
+        if self.obj != x.obj:
+            raise ValueError("Formal vairables of different objects cannot be subtracted")
+        keys1 = self._dict.keys()
+        keys2 = x._dict.keys()
+        r_dict = {}
+        for idx in keys1:
+            if idx in keys2:
+                r_dict[idx] = self._dict[idx] - x._dict[idx]
+            else:
+                r_dict[idx] = self._dict[idx]
+        for idx in keys2:
+            if r_dict.has_key(idx):
+                pass
+            else:
+                r_dict[idx] = -x._dict[idx]
+        return FormalExpression(r_dict, sym = self.symbol, obj = self.obj)
+        
+    def __neg__(self):
+        """
+        
+        """
+        
+        s_keys = self._dict.keys()
+        r_dict = {}
+        for idx in s_keys:
+            r_dict[idx] = -self._dict[idx]
+        return FormalExpression(r_dict, sym = self.symbol, obj = self.obj)
+        
+    def __rmul__(self, x):
+        """
+        
+        """
+        
+        s_keys = self._dict.keys()
+        r_dict = {}
+        for idx in s_keys:
+            v1 = self._dict[idx]
+            r_dict[idx] = v1*x
+        return FormalExpression(r_dict, sym = self.symbol, obj = self.obj)
+        
+    def __mul__(self,x):
+        """
+        
+        """
+        
+        s_keys = self._dict.keys()
+        r_dict = {}
+        for idx in s_keys:
+            v1 = self._dict[idx]
+            r_dict[idx] = v1*x
+        return FormalExpression(r_dict, sym = self.symbol, obj = self.obj)
+    
+    def __repr__(self):
+        """
+        
+        """
+        
+        if self.const:
+            return "Instance of formal expression (in)equality."
+        return "Instance of formal expression."
+    
+    def __str__(self):
+        """
+        
+        """
+        
+        t = ""
+        number_types = [type(1), type(1/2), type(1.0)]
+        if not self.const:
+            s_keys = self._dict.keys()
+            for idx in s_keys:
+                sgn = '+'
+                tmp = self._dict[idx]
+                if type(tmp) in number_types:
+                    sgn = ('-' if tmp < 0 else '+')
+                    t += ((sgn if sgn == '-' else '') if t == '' else sgn) + "%s%s%s"%(str(abs(tmp)), ('*'+self.symbol+'[' if idx!=-1 else ''), (str(idx)+']' if idx!=-1 else ''))
+                else:
+                    t += ('' if t == '' else sgn) + "%s%s%s"%(latex(tmp), ('*'+self.symbol+'[' if idx!=-1 else ''), (str(idx)+']' if idx!=-1 else ''))
+        else:
+            s_keys = self.LH.keys()
+            for idx in s_keys:
+                sgn = '+'
+                tmp = self.LH[idx]
+                if type(tmp) in number_types:
+                    sgn = ('-' if tmp < 0 else '+')
+                    t += ((sgn if sgn == '-' else '') if t == '' else sgn) + "%s%s%s"%(str(abs(tmp)), ('*'+self.symbol+'[' if idx!=-1 else ''), (str(idx)+']' if idx!=-1 else ''))
+                else:
+                    t += ('' if t == '' else sgn) + "%s%s%s"%(tmp, ('*'+self.symbol+'[' if idx!=-1 else ''), (str(idx)+']' if idx!=-1 else ''))
+            t += self.cmpsym
+            s_keys = self.RH.keys()
+            s = t
+            t = ''
+            for idx in s_keys:
+                sgn = '+'
+                tmp = self.RH[idx]
+                if type(tmp) in number_types:
+                    sgn = ('-' if tmp < 0 else '+')
+                    t += ((sgn if sgn == '-' else '') if t == '' else sgn) + "%s%s%s"%(str(abs(tmp)), ('*'+self.symbol+'[' if idx!=-1 else ''), (str(idx)+']' if idx!=-1 else ''))
+                else:
+                    t += ('' if t == '' else sgn) + "%s%s%s"%(tmp, ('*'+self.symbol+'[' if idx!=-1 else ''), (str(idx)+']' if idx!=-1 else ''))
+            t = s + t
+        return t
+    
+    def _latex_(self):
+        """
+        
+        """
+        
+        t = ""
+        number_types = [type(1), type(1/2), type(1.0)]
+        if not self.const:
+            s_keys = self._dict.keys()
+            for idx in s_keys:
+                sgn = '+'
+                tmp = self._dict[idx]
+                if type(tmp) in number_types:
+                    sgn = ('-' if tmp < 0 else '+')
+                    t += ((sgn if sgn == '-' else '') if t == '' else sgn) + "%s %s_{%s}"%(str(abs(tmp)), (self.symbol if idx!=-1 else ''), (str(idx) if idx!=-1 else ''))
+                else:
+                    t += ('' if t == '' else sgn) + "%s %s_{%s}"%(latex(tmp), (self.symbol if idx!=-1 else ''), (str(idx) if idx!=-1 else ''))
+        else:
+            sgnTeX = {'==':'=', '>':'>', '<':'<', '>=':'\\geq', '<=':'\\leq'}
+            s_keys = self.LH.keys()
+            for idx in s_keys:
+                sgn = '+'
+                tmp = self.LH[idx]
+                if type(tmp) in number_types:
+                    sgn = ('-' if tmp < 0 else '+')
+                    t += ((sgn if sgn == '-' else '') if t == '' else sgn) + "%s %s_{%s}"%(str(abs(tmp)), (self.symbol if idx!=-1 else ''), (str(idx) if idx!=-1 else ''))
+                else:
+                    t += ('' if t == '' else sgn) + "%s %s_{%s}"%(latex(tmp), (self.symbol if idx!=-1 else ''), (str(idx) if idx!=-1 else ''))
+            t += sgnTeX[self.cmpsym]
+            s_keys = self.RH.keys()
+            s = t
+            t = ''
+            for idx in s_keys:
+                sgn = '+'
+                tmp = self.RH[idx]
+                if type(tmp) in number_types:
+                    sgn = ('-' if tmp < 0 else '+')
+                    t += ((sgn if sgn == '-' else '') if t == '' else sgn) + "%s %s_{%s}"%(str(abs(tmp)), (self.symbol if idx!=-1 else ''), (str(idx) if idx!=-1 else ''))
+                else:
+                    t += ('' if t == '' else sgn) + "%s %s_{%s}"%(latex(tmp), (self.symbol if idx!=-1 else ''), (str(idx) if idx!=-1 else ''))
+            t = s + t
+        return t
+                
+    
+    def __hash__(self):
+        """
+        
+        """
+        
+        return hash(self)
+        
+    def __gt__(self, y):
+        """
+        
+        """
+        
+        if not isinstance(y,FormalExpression):
+            x = FormalExpression({-1:y})
+        else:
+            x = y
+        keys1 = self._dict.keys()
+        keys2 = x._dict.keys()
+        r_dict = {}
+        for idx in keys1:
+            if idx in keys2:
+                r_dict[idx] = self._dict[idx] - x._dict[idx]
+            else:
+                r_dict[idx] = self._dict[idx]
+        for idx in keys2:
+            if r_dict.has_key(idx):
+                pass
+            else:
+                r_dict[idx] = -x._dict[idx]
+        NObj = FormalExpression(r_dict, sym = self.symbol, obj = self.obj)
+        NObj.const = True
+        NObj.cmpsym = '>'
+        NObj.LH = self._dict
+        NObj.RH = x._dict
+        return NObj
+        
+    def __ge__(self, y):
+        """
+        
+        """
+        
+        if not isinstance(y,FormalExpression):
+            x = FormalExpression({-1:y})
+        else:
+            x = y
+        keys1 = self._dict.keys()
+        keys2 = x._dict.keys()
+        r_dict = {}
+        for idx in keys1:
+            if idx in keys2:
+                r_dict[idx] = self._dict[idx] - x._dict[idx]
+            else:
+                r_dict[idx] = self._dict[idx]
+        for idx in keys2:
+            if r_dict.has_key(idx):
+                pass
+            else:
+                r_dict[idx] = -x._dict[idx]
+        NObj = FormalExpression(r_dict, sym = self.symbol, obj = self.obj)
+        NObj.const = True
+        NObj.cmpsym = '>='
+        NObj.LH = self._dict
+        NObj.RH = x._dict
+        return NObj
+        
+    def __lt__(self, y):
+        """
+        
+        """
+        
+        if not isinstance(y,FormalExpression):
+            x = FormalExpression({-1:y})
+        else:
+            x = y
+        keys1 = self._dict.keys()
+        keys2 = x._dict.keys()
+        r_dict = {}
+        for idx in keys1:
+            if idx in keys2:
+                r_dict[idx] = self._dict[idx] - x._dict[idx]
+            else:
+                r_dict[idx] = self._dict[idx]
+        for idx in keys2:
+            if r_dict.has_key(idx):
+                pass
+            else:
+                r_dict[idx] = -x._dict[idx]
+        NObj = FormalExpression(r_dict, sym = self.symbol, obj = self.obj)
+        NObj.const = True
+        NObj.cmpsym = '<'
+        NObj.LH = self._dict
+        NObj.RH = x._dict
+        return NObj
+        
+    def __le__(self, y):
+        """
+        
+        """
+        
+        if not isinstance(y,FormalExpression):
+            x = FormalExpression({-1:y})
+        else:
+            x = y
+        keys1 = self._dict.keys()
+        keys2 = x._dict.keys()
+        r_dict = {}
+        for idx in keys1:
+            if idx in keys2:
+                r_dict[idx] = self._dict[idx] - x._dict[idx]
+            else:
+                r_dict[idx] = self._dict[idx]
+        for idx in keys2:
+            if r_dict.has_key(idx):
+                pass
+            else:
+                r_dict[idx] = -x._dict[idx]
+        NObj = FormalExpression(r_dict, sym = self.symbol, obj = self.obj)
+        NObj.const = True
+        NObj.cmpsym = '<='
+        NObj.LH = self._dict
+        NObj.RH = x._dict
+        return NObj
+        
+    def __eq__(self, y):
+        """
+        
+        """
+        
+        if not isinstance(y,FormalExpression):
+            x = FormalExpression({-1:y})
+        else:
+            x = y
+        keys1 = self._dict.keys()
+        keys2 = x._dict.keys()
+        r_dict = {}
+        for idx in keys1:
+            if idx in keys2:
+                r_dict[idx] = self._dict[idx] - x._dict[idx]
+            else:
+                r_dict[idx] = self._dict[idx]
+        for idx in keys2:
+            if r_dict.has_key(idx):
+                pass
+            else:
+                r_dict[idx] = -x._dict[idx]
+        NObj = FormalExpression(r_dict, sym = self.symbol, obj = self.obj)
+        NObj.const = True
+        NObj.cmpsym = '=='
+        NObj.LH = self._dict
+        NObj.RH = x._dict
+        return NObj
+        
+    def __radd__(self, x):
+        """
+        
+        """
+        
+        r_dict = self._dict
+        if not isinstance(x,FormalExpression):
+            if r_dict.has_key(-1):
+                r_dict[-1] += x
+            else:
+                r_dict[-1] = x
+        return FormalExpression(r_dict, sym = self.symbol, obj = self.obj)
+        
+    def __rsub__(self, x):
+        """
+        
+        """
+        
+        r_dict = dict([(id,-coeff) for (id, coeff) in self._dict.iteritems()])
+        if not isinstance(x,FormalExpression):
+            if r_dict.has_key(-1):
+                r_dict[-1] = x + r_dict[-1]
+            else:
+                r_dict[-1] = x
+        return FormalExpression(r_dict, sym = self.symbol, obj = self.obj)
+
 
 ########################## The generic sdp solver interfacing various solvers ########################## 
 
@@ -691,7 +1143,7 @@ class BlockMat:
     
 ########################## Semidefinite Program class ##########################
 
-class SemidefiniteProgram:
+class SemidefiniteProgram(SageObject):
     """
     The 'SemidefiniteProgram' class provides a user friendly interface to solve
     primal or dual semidefinite programming (sdp) problems within Sage.
@@ -781,8 +1233,15 @@ class SemidefiniteProgram:
         self.a = []
         self.C = BlockMat()
         self.A = []
+        self.variables = {}
         
-    def set_objective(self, M):
+    def new_variable(self, name= ""):
+        v = FormalVariable(name = name, obj = self)
+        num_vars = len(self.variables.keys())
+        self.variables[num_vars] = v
+        return v
+    
+    def set_objective(self, Objective):
         """
         Sets the objective of the 'SemidefiniteProgram'.
         
@@ -798,6 +1257,13 @@ class SemidefiniteProgram:
                         Double indexed python list;
                         CvxOpt matrix.
         """
+        
+        ## Check if the objective is given as a formal expression:
+        if isinstance(Objective, FormalExpression):  # constant term of objective?
+            M = Objective._dict.values()
+        else:
+            ## Otherwise:
+            M = Objective
         
         ## Primal case:
         if self.Primal:
@@ -828,7 +1294,7 @@ class SemidefiniteProgram:
                     self.C = [converted_M]
         ##############################################################
         
-    def add_constraint(self, M1, M2):
+    def add_constraint(self, Constraint, M2 = None):
         """
         Adds a constraint to the 'SemidefiniteProgram'.
         
@@ -857,6 +1323,29 @@ class SemidefiniteProgram:
                     
         """
         
+        ## Check if the constraint is given as a formal expression:
+        if isinstance(Constraint, FormalExpression):  # constant term of objective?
+            ## Make sure that the entered formal expression is an instance of a constraint
+            if not Constraint.const:
+                ErrorString = "The constraint should include a comparison symbol."
+                raise ValueError(ErrorString)
+            else:
+                sgn = 1
+                if Constraint.cmpsym in ['<', '<=']:
+                    sgn = -1
+                ## If the constraint is in the reduced format
+                if not Constraint.reduced:
+                    Constraint.reduce()
+                t_dict = Constraint._dict
+                if t_dict.has_key(-1):
+                    M2 = (-1*sgn)*t_dict.pop(-1)
+                    M1 = [sgn*MT for MT in t_dict.values()]
+                else:
+                    M1 = [sgn*MT for MT in t_dict.values()]
+                    M2 = 0*M1[0]
+                
+        else:
+            M1 = Constraint
         ## SDP in primal form
         if self.Primal:
             ## Check the input
