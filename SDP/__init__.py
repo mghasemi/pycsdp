@@ -1,1 +1,1 @@
-__all__ = ['SDP']
+from SDP import SemidefiniteProgram
