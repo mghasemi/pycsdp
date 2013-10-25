@@ -114,7 +114,7 @@ def matrix_converter(M, output_type):
         elif l_output_type == 'cvxopt':
             return M
 
-########## Chech if the argument is a number or not ##########
+########## Check if the argument is a number or not ##########
 def is_constant(c):
     """
     Determines whether the input argument is a constant number or not.
@@ -125,31 +125,7 @@ def is_constant(c):
     return False
 
 ########## Matlab matrix constructor ##########
-def MatlabBlockMat(M):
-    """
-    Generates a code block to define a MATLAB block matrix.
-    
-    Argument:
-        'M':
-            is a python list of square matrices.
-            Matrices can be in different formats:
-                Sage matrix;
-                Numpy matrix;
-                Double indexed python list
-                CvxOpt matrix
-    """
-    
-    from sage.interfaces.matlab import Matlab
-    instance = Matlab()
-    n = len(M)
-    code = "blkdiag("
-    for idx in range(n):
-        #print matrix_converter(M[idx], 'sage')
-        code += instance.sage2matlab_matrix_string(matrix_converter(M[idx], 'sage'))
-        if idx != (n-1):
-            code += ", "
-    code += ")"
-    return code
+
 
 #########################################################################
 
@@ -164,6 +140,12 @@ class FormalVariable:
         Initiate the instance which could be attached to another object.
         Formal variables attached to different objects cannot appear at 
         the same time in an expression.
+        
+        INPUT:
+            -'obj'-- is an instance of object which the variable is 
+            attached to.
+            
+            - `name`-- an string to represent the variable for printing.
         """
         
         self._dict = {}
@@ -205,12 +187,31 @@ class FormalVariable:
 
 class FormalExpression:
     """
+    An elementary algebra to represent symbolic linear functions and 
+    linear (in)equalities with arbitrary coefficients.
     
+    EXAMPLES:
+        Representing a functional:
+        
+        sage: x = SDP.FormalVariable()
+        sage: L = 2*x[0] - x[1] + matrix([[-1,0],[-2,1]])
+        sage: print L
+        2*x[0]-1*x[1]+[-1 0]
+                      [-2 1]
+        an inequality:
+        
+        sage: x = SDP.FormalVariable()
+        sage: L = 2*x[0] - x[1] + matrix([[-1,0],[-2,1]])
+        sage: print L
+        2*x[0]-1*x[1]<=[-1 0]
+                      [-2 1]
     """
     
     def __init__(self, elm, sym = 'x', obj = None):
         """
-        
+        A linear function is represented as a dictionary. The values are
+        the coefficient of the variable represented by the keys ( which 
+        are integers ). The key ``-1`` corresponds to the constant term.
         """
         
         self._dict = elm
@@ -222,17 +223,49 @@ class FormalExpression:
         self.LH = {}
         self.RH = {}
     
-    def reduce(self):
+    def ord(self):
+        """
+        Reorders the keys in increasing order.
         """
         
+        tmp_dict = self._dict
+        tmp_keys = tmp_dict.keys()
+        tmp_keys.sort()
+        self._dict = {}
+        for itm in tmp_keys:
+            self._dict[itm] = tmp_dict[itm]
+            if self.obj != None:
+                try:
+                    if itm not in self.obj.var_ord:
+                        self.obj.var_ord.append(itm)
+                except:
+                    pass
+        try:
+            self.obj.var_ord.sort()
+        except:
+            pass
+        self = FormalExpression(tmp_dict, sym = self.symbol, obj = self.obj)
+    
+    def reduce(self):
+        """
+        If the instance is an (in)equlity, this method separates left and
+        right sides of the (in)equality and stores data in to two dictionaries
+        `LH` and `RH`. The main dictionary `_dict` stores `LH-RH`.
         """
         
         if self.const:
             self.reduced = True
     
-    def __add__(self,x):
+    def tr(self):
+        """
+        A dummy method to indicate trace function. Does nothing!
         """
         
+        return self
+    
+    def __add__(self,x):
+        """
+        Defining the `+` operator (addition)
         """
         
         if not isinstance(x,FormalExpression):
@@ -261,7 +294,7 @@ class FormalExpression:
     
     def __sub__(self,x):
         """
-        
+        Defining the `-` operator (suntraction)
         """
         
         if not isinstance(x,FormalExpression):
@@ -290,7 +323,7 @@ class FormalExpression:
         
     def __neg__(self):
         """
-        
+        Defining the unitary `-` operator (negation)
         """
         
         s_keys = self._dict.keys()
@@ -301,7 +334,7 @@ class FormalExpression:
         
     def __rmul__(self, x):
         """
-        
+        Defining the right `*` operator (right multiplication)
         """
         
         s_keys = self._dict.keys()
@@ -313,7 +346,7 @@ class FormalExpression:
         
     def __mul__(self,x):
         """
-        
+        Defining the `*` operator (multiplication)
         """
         
         s_keys = self._dict.keys()
@@ -325,7 +358,7 @@ class FormalExpression:
     
     def __repr__(self):
         """
-        
+        Returns a string representation of the linear expressions.
         """
         
         if self.const:
@@ -334,7 +367,7 @@ class FormalExpression:
     
     def __str__(self):
         """
-        
+        Returns the string representation of the object for printing.
         """
         
         t = ""
@@ -376,7 +409,7 @@ class FormalExpression:
     
     def _latex_(self):
         """
-        
+        Returns the LaTeX string representation of the object.
         """
         
         t = ""
@@ -420,14 +453,14 @@ class FormalExpression:
     
     def __hash__(self):
         """
-        
+        Return a hash.
         """
         
         return hash(self)
         
     def __gt__(self, y):
         """
-        
+        Defining `>` comparison behaviour.
         """
         
         if not isinstance(y,FormalExpression):
@@ -456,7 +489,7 @@ class FormalExpression:
         
     def __ge__(self, y):
         """
-        
+        Defining `>=` comparison behaviour.
         """
         
         if not isinstance(y,FormalExpression):
@@ -485,7 +518,7 @@ class FormalExpression:
         
     def __lt__(self, y):
         """
-        
+        Defining `<` comparison behaviour.
         """
         
         if not isinstance(y,FormalExpression):
@@ -514,7 +547,7 @@ class FormalExpression:
         
     def __le__(self, y):
         """
-        
+        Defining `<=` comparison behaviour.
         """
         
         if not isinstance(y,FormalExpression):
@@ -543,7 +576,7 @@ class FormalExpression:
         
     def __eq__(self, y):
         """
-        
+        Defining `==` equality behaviour.
         """
         
         if not isinstance(y,FormalExpression):
@@ -572,7 +605,7 @@ class FormalExpression:
         
     def __radd__(self, x):
         """
-        
+        Defining the right `+` operator (right addition)
         """
         
         r_dict = self._dict
@@ -585,7 +618,7 @@ class FormalExpression:
         
     def __rsub__(self, x):
         """
-        
+        Defining the right `-` operator (right subtraction)
         """
         
         r_dict = dict([(id,-coeff) for (id, coeff) in self._dict.iteritems()])
@@ -596,7 +629,99 @@ class FormalExpression:
                 r_dict[-1] = x
         return FormalExpression(r_dict, sym = self.symbol, obj = self.obj)
 
+########################## Block Matrix class ##########################
 
+class BlockMat:
+    """
+    BlockMat class:
+        
+        A simple interface which implements simple block matrix construction
+        with different type of matrices in SAGE.
+        
+    """
+        
+    def __init__(self, M = []):
+        """
+        Initiates a block diagonal matrix based on input
+        
+        Argument:
+            'M':
+                A python list of square matrices as blocks.
+                Matrices can be in different formats:
+                    Sage matrix;
+                    Numpy matrix;
+                    Double indexed python list;
+                    CvxOpt matrix.
+        """
+        
+        if type(M) is not list:
+            ErrorString = "The input should be a list of matrices or numbers."
+            print ErrorString
+            return
+        self.Blocks = []
+        self.Type = []
+        for A in M:
+            self.add_block(A)
+        
+    def add_block(self, M):
+        """
+        Appends a square block 'M' at the end of current block matrix.
+        
+        Argument:
+            'M':
+                A square matrix of the following types is acceptable:
+                    Sage matrix;
+                    Numpy matrix;
+                    Double indexed python list;
+                    CvxOpt matrix.
+        """
+        
+        if is_constant(M):
+            self.Blocks.append([M])
+            self.Type.append(1)
+        else:
+            B = matrix_converter(M, 'numpy')
+            if B.shape[0] != B.shape[1]:
+                ErrorString = "All blocks should be square."
+                print ErrorString
+                return
+            self.Blocks.append(B)
+            self.Type.append(B.shape[0])
+        self.TotalSize = sum(self.Type)
+        self.NumBlocks = len(self.Type)
+    
+    def Matrix2Block(self, M, typ):
+        """
+        Split a matrix into blocks of square matrices.
+        
+        Arguments:
+            'M':
+                A block diagonal matrix of the following type:
+                    Sage matrix;
+                    Numpy matrix;
+                    Double indexed python list;
+                    CvxOpt matrix.
+            'typ':
+                A list on positive integers which determines the size of each blocks.
+        """
+        
+        self.Type = typ
+        self.TotalSize = sum(typ)
+        self.NumBlocks = len(typ)
+        begin = 0
+        for end in typ:
+            self.Blocks.append(numpy.matrix(M[begin:begin+end, begin:begin+end]))
+            begin += end
+    
+    def Block2Matrix(self):
+        """
+        Constructs a single block diagonal matrix in 'numpy' format from class data.
+          
+        """
+        
+        tmp = numpy.matrix(block_diag(*self.Blocks))
+        return tmp
+    
 ########################## The generic sdp solver interfacing various solvers ########################## 
 
 class sdp:
@@ -724,7 +849,33 @@ class sdp:
             for i in range(n):
                 V.append(Mt[i,j])
         return V
+    
+    def MatlabBlockMat(self,M):
+        """
+        Generates a code block to define a MATLAB block matrix.
         
+        Argument:
+            'M':
+                is a python list of square matrices.
+                Matrices can be in different formats:
+                    Sage matrix;
+                    Numpy matrix;
+                    Double indexed python list
+                    CvxOpt matrix
+        """
+        
+        from sage.interfaces.matlab import Matlab
+        instance = Matlab()
+        n = len(M)
+        code = "blkdiag("
+        for idx in range(n):
+            #print matrix_converter(M[idx], 'sage')
+            code += instance.sage2matlab_matrix_string(matrix_converter(M[idx], 'sage'))
+            if idx != (n-1):
+                code += ", "
+        code += ")"
+        return code
+    
     def solve(self, C, a, A):
         """
         Solves a semidefinite programming problem with entered data.
@@ -899,12 +1050,12 @@ class sdp:
             instance.eval(matlab_code)
             matlab_code = "bt = -c;"
             instance.eval(matlab_code)
-            matlab_code = "F = -" + MatlabBlockMat(C) + ";"
+            matlab_code = "F = -" + self.MatlabBlockMat(C) + ";"
             instance.eval(matlab_code)
             matlab_code = "ct = vec(F);"
             instance.eval(matlab_code)
             for i in range(self.num_constraints):
-                matlab_code = "At(:," + str(i+1) + ") = -vec(" + MatlabBlockMat(A[i]) + ");"
+                matlab_code = "At(:," + str(i+1) + ") = -vec(" + self.MatlabBlockMat(A[i]) + ");"
                 instance.eval(matlab_code)
             matlab_code = "K.s = size(F,1);"
             instance.eval(matlab_code)
@@ -953,12 +1104,12 @@ class sdp:
             instance.eval(matlab_code)
             matlab_code = "bt = -c;"
             instance.eval(matlab_code)
-            matlab_code = "F = -" + MatlabBlockMat(C) + ";"
+            matlab_code = "F = -" + self.MatlabBlockMat(C) + ";"
             instance.eval(matlab_code)
             matlab_code = "ct = vec(F);"
             instance.eval(matlab_code)
             for i in range(self.num_constraints):
-                matlab_code = "At(:," + str(i+1) + ") = -vec(" + MatlabBlockMat(A[i]) + ");"
+                matlab_code = "At(:," + str(i+1) + ") = -vec(" + self.MatlabBlockMat(A[i]) + ");"
                 instance.eval(matlab_code)
             matlab_code = "K.s = size(F,1);"
             instance.eval(matlab_code)
@@ -1048,99 +1199,797 @@ class sdp:
                 flag+=1
         return cpycsdp(C_csdp, A_csdp, a_csdp, d_csdp)
         
-########################## Block Matrix class ##########################
+########################## Bacends ##########################
 
-class BlockMat:
+## Csdp Backend:
+class CsdpBackend:
     """
-    BlockMat class:
-        
-        A simple interface which implements simple block matrix construction
-        with different type of matrices in SAGE.
-        
+    The backend for the `csdp` solver to be used by `SemidefiniteProgram`
+    class.
     """
-        
-    def __init__(self, M = []):
+    
+    def __init__(self):
         """
-        Initiates a block diagonal matrix based on input
+        Constructor. To be used by `SemidefiniteProgram` class.
+        """
+        
+        CSDP_SOLVER = False
+        ## Check for availability of CSDP
+        try:
+            from cpycsdp import cpycsdp, CSDP_SOLVER
+            if not CSDP_SOLVER:
+                self.ErrorString = "CSDP is not available."
+                return
+            self.Csdp_Available = True
+        except ImportError:
+            self.Csdp_Available = False
+            self.ErrorString = "CSDP is not available"
+            return
+        self.solver_options = {}
+        self.Info = {}
+    
+    def cpycsdp(self, C, a, A):
+        """
+        Translates the input sdp into the format acceptable by the Cython module
+        cpycsdp. One should avoid using this method individually, but instead call
+        the solver method for 'csdp' solver. 
+        """
+        
+        from cpycsdp import cpycsdp
+        d=[]
+        # Number of blocks
+        d.append(len(C))
+        # Number of constraints
+        d.append(len(A))
+        flag = 0
+        a = numpy.insert(a, 0, 0)
+        a_csdp = numpy.array(a, dtype = numpy.float64)
+        for Cblk in C:
+            d.append(len(Cblk))
+            temp_block = numpy.matrix(Cblk)
+            if flag == 0:
+                C_csdp = numpy.array(numpy.reshape(temp_block, temp_block.shape[0]*temp_block.shape[1], order='F'), dtype=numpy.float64)
+            else:
+                C_csdp = numpy.append(C_csdp, numpy.array(numpy.reshape(temp_block, temp_block.shape[0]*temp_block.shape[1], order='F'), dtype=numpy.float64))
+            flag += 1
+        d_csdp = numpy.array(d)
+        flag = 0
+        for Cns in A:
+            for cns_blk in Cns:
+                temp_block = numpy.matrix(cns_blk)
+                if flag == 0:
+                    A_csdp = numpy.array(numpy.reshape(temp_block, temp_block.shape[0]*temp_block.shape[1], order='F'))
+                else:
+                    A_csdp = numpy.append(A_csdp, numpy.array(numpy.reshape(temp_block, temp_block.shape[0]*temp_block.shape[1], order='F')))
+                flag+=1
+        return cpycsdp(C_csdp, A_csdp, a_csdp, d_csdp)
+    
+    def solver_parameter(self, name, value = None):
+        """
+        Initializes a parameter for the solver (if exists).
+        """
+        
+        self.solver_options[name] = value
+    
+    def get_objective_value(self):
+        """
+        Returns the value of the objective function.
+        """
+        
+        return [self.Info['PObj'], self.Info['DObj']]
+    
+    def get_variable_value(self, var, p_type):
+        """
+        Returns the value of a variable given by the solver.
+        """
+        
+        if p_type:
+            return self.Info['y'][0,var]
+        else:
+            return self.Info['X'][var]
+    
+    def solve(self, C, a, A):
+        """
+        Solves a semidefinite programming problem with entered data.
+        
+        Arguments:
+            C:
+                a list of square matrices (sage matrix, numpy matrix, 
+                double indexed python list or cvxopt matrix)
+            a:
+                a list of real numbers
+            A:
+                list of block constraints
+                
+        Example:
+            Primal:
+                
+            minimize 
+                a^t*y
+            subject to
+                A^t(y) - C = Z
+                    Z is psd
+            where
+                A^t(y) = y1 A1 + ... + ym Am
+            and
+                C = [C1,..., Cm]
+
+            Dual:
+                
+            maximize 
+                tr(C*X)
+            subject to
+                tr(A1*X) = a1
+                    .
+                    .
+                    .
+                tr(Am*X) = am
+                    X is  psd
+        
+        Returns a dictionary containing following data:
+            
+            'Status':
+                either 'Optimal' or 'Infeasible'
+            'PObj':
+                value of primal objective function
+            'DObj':
+                value of dual objective function
+            'X':
+                the psd matrix X in the primal problem
+            'Z':
+                the psd matrix Z in the dual problem
+            'y':
+                the vector y for the dual problem
+            'Wall':
+                Wall time spent by sdp solver (in seconds)
+            'CPU':
+                CPU time spent by sdp solver (in seconds)
+        
+        The output matrix are in numpy format
+        """
+        
+        from time import time, clock
+        
+        self.num_constraints = len(A)
+        self.num_blocks = len(C)
+        
+        ## setting up the data for csdp solver
+        if not self.Csdp_Available:
+            self.ErrorString = "CSDP is not available."
+            return
+        for idx in range(self.num_blocks):
+            C[idx] = matrix_converter(C[idx], 'numpy')
+        for i in range(self.num_constraints):
+            for idx in range(self.num_blocks):
+                A[i][idx] = matrix_converter(A[i][idx], 'numpy')
+        b = list(a)
+        start1 = time()
+        start2= clock()
+        try:
+        #if True:
+            sol = self.cpycsdp(C, b, A)
+            elapsed1 = (time() - start1)
+            elapsed2 = (clock() - start2)
+            if sol['code'] >= 4:
+                status = 'Infeasible'
+            else:
+                status = 'Optimal'
+            self.Info = {'Status':status, 'DObj':sol['dual'],
+                'PObj':sol['primal'], 'Wall':elapsed1, 'CPU':elapsed2}
+            self.Info['y'] = matrix_converter(sol['y'], 'numpy')
+            self.Info['Z'] = []
+            for ds in sol['Z']:
+                self.Info['Z'].append(matrix_converter(ds, 'numpy'))
+            self.Info['X'] = []
+            for ds in sol['X']:
+                self.Info['X'].append(matrix_converter(ds, 'numpy'))
+        except:
+            self.Info={'Status':'Infeasible'}
+        
+        self.Info['solver'] = 'csdp'
+
+
+## CvxOpt Backend:
+class CvxOptBackend:
+    """
+    The backend for the `cvxopt` solver to be used by `SemidefiniteProgram`
+    class.
+    """
+    
+    def __init__(self):
+        """
+        Constructor. To be used by `SemidefiniteProgram` class.
+        """
+        
+        from sage import matrix
+        try:
+            from cvxopt import solvers
+            from cvxopt.base import matrix as Mtx
+            RealNumber = float  # Required for CvxOpt
+            Integer = int       # Required for CvxOpt
+            self.CvxOpt_Available = True
+        except:
+            self.CvxOpt_Available = False
+            self.ErrorString = "CVXOPT is not available."
+            return
+        self.solver_options = {}
+        self.Info = {}
+    
+    def VEC(self, M):
+        """
+        Converts the matrix M into a column vector
+        
+        Argument:
+            M:
+                Any type of matrix
+        """
+        
+        V = []
+        Mt = matrix_converter(M, 'numpy')
+        n,m = Mt.shape
+        for j in range(m):
+            for i in range(n):
+                V.append(Mt[i,j])
+        return V
+    
+    def solver_parameter(self, name, value = None):
+        """
+        Initializes a parameter for the solver (if exists).
+        """
+        
+        self.solver_options[name] = value
+    
+    def get_objective_value(self):
+        """
+        Returns the value of the objective function.
+        """
+        
+        return [self.Info['PObj'], self.Info['DObj']]
+    
+    def get_variable_value(self, var, p_type):
+        """
+        Returns the value of a variable given by the solver.
+        """
+        
+        if p_type:
+            return self.Info['y'][var][0]
+        else:
+            return self.Info['X'][var]
+
+    
+    def solve(self, C, a, A):
+        """
+        Solves a semidefinite programming problem with entered data.
+        
+        Arguments:
+            C:
+                a list of square matrices (sage matrix, numpy matrix, 
+                double indexed python list or cvxopt matrix)
+            a:
+                a list of real numbers
+            A:
+                list of block constraints
+                
+        Example:
+            Primal:
+                
+            minimize 
+                a^t*y
+            subject to
+                A^t(y) - C = Z
+                    Z is psd
+            where
+                A^t(y) = y1 A1 + ... + ym Am
+            and
+                C = [C1,..., Cm]
+
+            Dual:
+                
+            maximize 
+                tr(C*X)
+            subject to
+                tr(A1*X) = a1
+                    .
+                    .
+                    .
+                tr(Am*X) = am
+                    X is  psd
+        
+        Returns a dictionary containing following data:
+            
+            'Status':
+                either 'Optimal' or 'Infeasible'
+            'PObj':
+                value of primal objective function
+            'DObj':
+                value of dual objective function
+            'X':
+                the psd matrix X in the primal problem
+            'Z':
+                the psd matrix Z in the dual problem
+            'y':
+                the vector y for the dual problem
+            'Wall':
+                Wall time spent by sdp solver (in seconds)
+            'CPU':
+                CPU time spent by sdp solver (in seconds)
+        
+        The output matrix are in numpy format
+        """
+        
+        from time import time, clock
+        
+        self.num_constraints = len(A)
+        self.num_blocks = len(C)
+        
+        ## setting up the data for cvxopt solver
+        if not self.CvxOpt_Available:
+            self.ErrorString = "CvxOpt is not available."
+            return
+        
+        from cvxopt import solvers
+        Cns = []
+        for idx in range(self.num_constraints):
+            Cns.append([])
+        Acvxopt = []
+        Ccvxopt = []
+        acvxopt = []
+        for M in C:
+            Ccvxopt.append(-matrix_converter(M,'cvxopt'))
+        for blk_no in range(self.num_blocks):
+            Ablock = []
+            for Cns in A:
+                Ablock.append(self.VEC(Cns[blk_no]))
+            Acvxopt.append(-matrix_converter(numpy.matrix(Ablock).transpose(), 'cvxopt'))
+        aTranspose=[]
+        for elmnt in a:
+            aTranspose.append([elmnt])
+        acvxopt = matrix_converter(aTranspose, 'cvxopt')
+        
+        for (par, val) in self.solver_options.iteritems():
+            try:
+                solvers.options[par] = val
+            except:
+                self.ErrorString = "CvxOpt solver does not have the parameter '" + par + "."
+        
+        start1 = time()
+        start2= clock()
+        
+        try:
+        #if True:
+            sol = solvers.sdp(acvxopt, Gs = Acvxopt, hs = Ccvxopt)
+            elapsed1 = (time() - start1)
+            elapsed2 = (clock() - start2)
+            if sol['status'] != 'optimal':
+                self.Info={'Status':'Infeasible'}
+            else:
+                self.Info = {'Status':'Optimal', 'DObj':sol['dual objective'],
+                'PObj':sol['primal objective'], 'Wall':elapsed1, 'CPU':elapsed2}
+                self.Info['y'] = matrix_converter(sol['x'], 'numpy')
+                self.Info['Z'] = []
+                for ds in sol['ss']:
+                    self.Info['Z'].append(matrix_converter(ds, 'numpy'))
+                self.Info['X'] = []
+                for ds in sol['zs']:
+                    self.Info['X'].append(matrix_converter(ds, 'numpy'))
+        except:
+            self.Info={'Status':'Infeasible'}
+        
+        self.Info['solver'] = 'cvxopt'
+
+## SeDuMi Backend:
+class SeDuMiBackend:
+    """
+    The backend for the `SeDuMi` solver to be used by `SemidefiniteProgram`
+    class. This only works if MATLAB and SeDuMi are available.
+    """
+    
+    def __init__(self):
+        """
+        Constructor. To be used by `SemidefiniteProgram` class.
+        """
+        
+        from sage.interfaces.matlab import Matlab
+        try:
+            interface = Matlab()
+            path_str = interface.get('path')
+            self.MATLAB_Available = True
+            if path_str.find('SeDuMi') >= 0:
+                self.SeDuMi_Available = True
+            else:
+                self.SeDuMi_Available = False
+            interface.eval("quit;")
+        except:
+            self.MATLAB_Available = False
+            self.SeDuMi_Available = False
+            self.ErrorString = "MATLAB SeDuMi is not available"
+            return
+        self.solver_options = {}
+        self.Info = {}
+    
+    def MatlabBlockMat(self,M):
+        """
+        Generates a code block to define a MATLAB block matrix.
         
         Argument:
             'M':
-                A python list of square matrices as blocks.
+                is a python list of square matrices.
                 Matrices can be in different formats:
                     Sage matrix;
                     Numpy matrix;
-                    Double indexed python list;
-                    CvxOpt matrix.
+                    Double indexed python list
+                    CvxOpt matrix
         """
         
-        if type(M) is not list:
-            ErrorString = "The input should be a list of matrices or numbers."
-            print ErrorString
+        from sage.interfaces.matlab import Matlab
+        instance = Matlab()
+        n = len(M)
+        code = "blkdiag("
+        for idx in range(n):
+            code += instance.sage2matlab_matrix_string(matrix_converter(M[idx], 'sage'))
+            if idx != (n-1):
+                code += ", "
+        code += ")"
+        return code
+    
+    def solver_parameter(self, name, value = None):
+        """
+        Initializes a parameter for the solver (if exists).
+        """
+        
+        self.solver_options[name] = value
+    
+    def get_objective_value(self):
+        """
+        Returns the value of the objective function.
+        """
+        
+        return [self.Info['PObj'], self.Info['PObj']]
+    
+    def get_variable_value(self, var, p_type):
+        """
+        Returns the value of a variable given by the solver.
+        """
+        
+        if p_type:
+            return self.Info['y'][var]
+
+    
+    def solve(self, C, a, A):
+        """
+        Solves a semidefinite programming problem with entered data.
+        
+        Arguments:
+            C:
+                a list of square matrices (sage matrix, numpy matrix, 
+                double indexed python list or cvxopt matrix)
+            a:
+                a list of real numbers
+            A:
+                list of block constraints
+                
+        Example:
+            Primal:
+                
+            minimize 
+                a^t*y
+            subject to
+                A^t(y) - C = Z
+                    Z is psd
+            where
+                A^t(y) = y1 A1 + ... + ym Am
+            and
+                C = [C1,..., Cm]
+
+            Dual:
+                
+            maximize 
+                tr(C*X)
+            subject to
+                tr(A1*X) = a1
+                    .
+                    .
+                    .
+                tr(Am*X) = am
+                    X is  psd
+        
+        Returns a dictionary containing following data:
+            
+            'Status':
+                either 'Optimal' or 'Infeasible'
+            'PObj':
+                value of primal objective function
+            'DObj':
+                value of dual objective function
+            'X':
+                the psd matrix X in the primal problem
+            'Z':
+                the psd matrix Z in the dual problem
+            'y':
+                the vector y for the dual problem
+            'Wall':
+                Wall time spent by sdp solver (in seconds)
+            'CPU':
+                CPU time spent by sdp solver (in seconds)
+        
+        The output matrix are in numpy format
+        """
+        
+        from time import time, clock
+        
+        self.num_constraints = len(A)
+        self.num_blocks = len(C)
+        
+        ## setting up the data for SeDuMi solver
+        if not self.SeDuMi_Available:
+            print "SeDuMi is not available."
             return
-        self.Blocks = []
-        self.Type = []
-        for A in M:
-            self.add_block(A)
+        from sage.interfaces.matlab import Matlab
+        from math import sqrt, floor
+        instance = Matlab()
+        matlab_code = "c = " + instance.sage2matlab_matrix_string(matrix_converter(a, 'sage')) + ";"
+        instance.eval(matlab_code)
+        matlab_code = "p = length(c);"
+        instance.eval(matlab_code)
+        matlab_code = "bt = -c;"
+        instance.eval(matlab_code)
+        matlab_code = "F = -" + self.MatlabBlockMat(C) + ";"
+        instance.eval(matlab_code)
+        matlab_code = "ct = vec(F);"
+        instance.eval(matlab_code)
+        for i in range(self.num_constraints):
+            matlab_code = "At(:," + str(i+1) + ") = -vec(" + self.MatlabBlockMat(A[i]) + ");"
+            instance.eval(matlab_code)
+        matlab_code = "K.s = size(F,1);"
+        instance.eval(matlab_code)
+        matlab_code = "[x, y, info] = sedumi(At,bt,ct,K);"
+        instance.eval(matlab_code)
+        x_size = floor(sqrt(eval(instance.get("length(x)"))))
+        y_size = eval(instance.get("length(y)"))
         
-    def add_block(self, M):
+        self.Info['X'] = []
+        i = 0
+        while i < x_size:
+            j = 0
+            row = []
+            while j < x_size:
+                row.append(eval(instance.get("x(" + str(int(i*x_size + j +1)) + ")")))
+                j += 1
+            i += 1
+            self.Info['X'].append(row)
+        self.Info['X'] = matrix_converter(self.Info['X'], 'numpy')
+        
+        self.Info['y'] = []
+        i = 0
+        while i < y_size:
+            self.Info['y'].append(eval(instance.get("y(" + str(i+1) + ")")))
+            i += 1
+        
+        self.Info['PObj'] = eval(instance.get("-sum(bt'.*y)"))
+        self.Info['CPU'] = eval(instance.get("info.cpusec"))
+        self.Info['Wall'] = eval(instance.get("info.wallsec"))
+        matlab_code = "quit;"
+        instance.eval(matlab_code)
+        self.Info['DObj'] = None
+        self.Info['Z'] = []
+        self.Info['Status'] = 'unknown'
+        
+        self.Info['solver'] = 'sedumi'
+        
+## SDPNAL Backend:
+class SDPNALBackend:
+    """
+    The backend for the `SeDuMi` solver to be used by `SemidefiniteProgram`
+    class. This only works if MATLAB and SDPNAL are available.
+    """
+    
+    def __init__(self):
         """
-        Appends a square block 'M' at the end of current block matrix.
+        Constructor. To be used by `SemidefiniteProgram` class.
+        """
+        
+        from sage.interfaces.matlab import Matlab
+        try:
+            interface = Matlab()
+            path_str = interface.get('path')
+            self.MATLAB_Available = True
+            if path_str.find('SDPNAL') >= 0:
+                self.SDPNAL_Available = True
+            else:
+                self.SDPNAL_Available = False
+            interface.eval("quit;")
+        except:
+            self.MATLAB_Available = False
+            self.SDPNAL_Available = False
+            self.ErrorString = "MATLAB SDPNAL is not available"
+            return
+        self.solver_options = {}
+        self.Info = {}
+    
+    def MatlabBlockMat(self,M):
+        """
+        Generates a code block to define a MATLAB block matrix.
         
         Argument:
             'M':
-                A square matrix of the following types is acceptable:
+                is a python list of square matrices.
+                Matrices can be in different formats:
                     Sage matrix;
                     Numpy matrix;
-                    Double indexed python list;
-                    CvxOpt matrix.
+                    Double indexed python list
+                    CvxOpt matrix
         """
         
-        if is_constant(M):
-            self.Blocks.append([M])
-            self.Type.append(1)
-        else:
-            B = matrix_converter(M, 'numpy')
-            if B.shape[0] != B.shape[1]:
-                ErrorString = "All blocks should be square."
-                print ErrorString
-                return
-            self.Blocks.append(B)
-            self.Type.append(B.shape[0])
-        self.TotalSize = sum(self.Type)
-        self.NumBlocks = len(self.Type)
+        from sage.interfaces.matlab import Matlab
+        instance = Matlab()
+        n = len(M)
+        code = "blkdiag("
+        for idx in range(n):
+            code += instance.sage2matlab_matrix_string(matrix_converter(M[idx], 'sage'))
+            if idx != (n-1):
+                code += ", "
+        code += ")"
+        return code
     
-    def Matrix2Block(self, M, typ):
+    def solver_parameter(self, name, value = None):
         """
-        Split a matrix into blocks of square matrices.
+        Initializes a parameter for the solver (if exists).
+        """
+        
+        self.solver_options[name] = value
+    
+    def get_objective_value(self):
+        """
+        Returns the value of the objective function.
+        """
+        
+        return [self.Info['PObj'], self.Info['DObj']]
+    
+    def get_variable_value(self, var, p_type):
+        """
+        Returns the value of a variable given by the solver.
+        """
+        
+        if p_type:
+            return self.Info['y'][var]
+
+    
+    def solve(self, C, a, A):
+        """
+        Solves a semidefinite programming problem with entered data.
         
         Arguments:
-            'M':
-                A block diagonal matrix of the following type:
-                    Sage matrix;
-                    Numpy matrix;
-                    Double indexed python list;
-                    CvxOpt matrix.
-            'typ':
-                A list on positive integers which determines the size of each blocks.
+            C:
+                a list of square matrices (sage matrix, numpy matrix, 
+                double indexed python list or cvxopt matrix)
+            a:
+                a list of real numbers
+            A:
+                list of block constraints
+                
+        Example:
+            Primal:
+                
+            minimize 
+                a^t*y
+            subject to
+                A^t(y) - C = Z
+                    Z is psd
+            where
+                A^t(y) = y1 A1 + ... + ym Am
+            and
+                C = [C1,..., Cm]
+
+            Dual:
+                
+            maximize 
+                tr(C*X)
+            subject to
+                tr(A1*X) = a1
+                    .
+                    .
+                    .
+                tr(Am*X) = am
+                    X is  psd
+        
+        Returns a dictionary containing following data:
+            
+            'Status':
+                either 'Optimal' or 'Infeasible'
+            'PObj':
+                value of primal objective function
+            'DObj':
+                value of dual objective function
+            'X':
+                the psd matrix X in the primal problem
+            'Z':
+                the psd matrix Z in the dual problem
+            'y':
+                the vector y for the dual problem
+            'Wall':
+                Wall time spent by sdp solver (in seconds)
+            'CPU':
+                CPU time spent by sdp solver (in seconds)
+        
+        The output matrix are in numpy format
         """
         
-        self.Type = typ
-        self.TotalSize = sum(typ)
-        self.NumBlocks = len(typ)
-        begin = 0
-        for end in typ:
-            self.Blocks.append(numpy.matrix(M[begin:begin+end, begin:begin+end]))
-            begin += end
-    
-    def Block2Matrix(self):
-        """
-        Constructs a single block diagonal matrix in 'numpy' format from class data.
-          
-        """
+        from time import time, clock
         
-        tmp = numpy.matrix(block_diag(*self.Blocks))
-        return tmp
-    
+        self.num_constraints = len(A)
+        self.num_blocks = len(C)
+        
+        ## setting up the data for SDPNAL solver
+        if not self.SDPNAL_Available:
+            print "SDPNAL is not available."
+            return
+        from sage.interfaces.matlab import Matlab
+        instance = Matlab()
+        matlab_code = "c = " + instance.sage2matlab_matrix_string(matrix_converter(a, 'sage')) + ";"
+        instance.eval(matlab_code)
+        matlab_code = "p = length(c);"
+        instance.eval(matlab_code)
+        matlab_code = "bt = -c;"
+        instance.eval(matlab_code)
+        matlab_code = "F = -" + self.MatlabBlockMat(C) + ";"
+        instance.eval(matlab_code)
+        matlab_code = "ct = vec(F);"
+        instance.eval(matlab_code)
+        for i in range(self.num_constraints):
+            matlab_code = "At(:," + str(i+1) + ") = -vec(" + self.MatlabBlockMat(A[i]) + ");"
+            instance.eval(matlab_code)
+        matlab_code = "K.s = size(F,1);"
+        instance.eval(matlab_code)
+        matlab_code = "opts = []; opts.tol = 1e-7;"
+        instance.eval(matlab_code)
+        matlab_code = "[blk,At,C,B] = read_sedumi(At,bt,ct,K);"
+        instance.eval(matlab_code)
+        matlab_code = "[obj,X,y,Z,info,runhist] = sdpnal(blk,At,C,B,opts);"
+        instance.eval(matlab_code)
+
+        x_size = eval(instance.get("length(X{1,1})"))
+        y_size = eval(instance.get("length(y)"))
+        
+        self.Info['X'] = []
+        i = 0
+        while i < x_size:
+            j = 0
+            row = []
+            while j < x_size:
+                row.append(eval(instance.get("X{1,1}(" + str(int(i*x_size + j +1)) + ")")))
+                j += 1
+            i += 1
+            self.Info['X'].append(row)
+        self.Info['X'] = matrix_converter(self.Info['X'], 'numpy')
+        
+        self.Info['y'] = []
+        i = 0
+        while i < y_size:
+            self.Info['y'].append(eval(instance.get("y(" + str(i+1) + ")")))
+            i += 1
+        
+        self.Info['Z'] = []
+        i = 0
+        while i < x_size:
+            j = 0
+            row = []
+            while j < x_size:
+                row.append(eval(instance.get("Z{1,1}(" + str(int(i*x_size + j +1)) + ")")))
+                j += 1
+            i += 1
+            self.Info['Z'].append(row)
+        self.Info['Z'] = matrix_converter(self.Info['Z'], 'numpy')
+        
+        self.Info['PObj'] = eval(instance.get("-obj(1)"))
+        self.Info['DObj'] = eval(instance.get("-obj(2)"))
+        matlab_code = "quit;"
+        instance.eval(matlab_code)
+        self.Info['CPU'] = None
+        self.Info['Wall'] = None
+        self.Info['Status'] = 'unknown'
+        
+        self.Info['solver'] = 'sdpnal'
+        
 ########################## Semidefinite Program class ##########################
 
 class SemidefiniteProgram(SageObject):
@@ -1195,6 +2044,44 @@ class SemidefiniteProgram(SageObject):
         Available through MATLAB, if MATLAB is installed and it 
         is added to system PATH.
         see http://www.math.nus.edu.sg/~mattohkc/SDPNAL.html
+        
+    EXAMPLE:
+        in primal form:
+        
+            from SDP import *
+            p = SemidefiniteProgram(primal = True, solver = 'cvxopt')
+            p.solver_parameter('show_progress', False)
+            y = p.new_variable()
+            objective = y[1]+2*y[2]
+            p.set_objective(objective)
+            constraint1 = matrix([[3,1],[1,3]])*y[1] + matrix([[0,0],[0,0]])*y[2]>=matrix([[2,1],[1,2]])
+            p.add_constraint(constraint1)
+            constraint2 = matrix([[0,0,0],[0,0,0],[0,0,0]])*y[1] + matrix([[3,0,1],[0,4,0],[1,0,5]])*y[2]>=matrix([[3,0,1],[0,2,0],[1,0,3]])
+            p.add_constraint(constraint2)
+            constraint3 = matrix([[1,0],[0,0]])*y[1] + matrix([[0,0],[0,1]])*y[2]>=matrix([[0,0],[0,0]])
+            p.add_constraint(constraint3)
+            p.solve()
+            print "objective value: ", p.get_objective_value()
+            print "y_1 = ", p.get_variable_value(y[1])
+            print "y_2 = ", p.get_variable_value(y[2])
+            
+        in dual form:
+        
+            from SDP import *
+            q = SemidefiniteProgram(primal = False, solver = 'csdp')
+            q.solver_parameter('show_progress', False)
+            x = q.new_variable()
+            objective = (matrix([[2,1],[1,2]])*x[1] + matrix([[3,0,1],[0,2,0],[1,0,3]])*x[2] + matrix([[0,0],[0,0]])*x[3]).tr()
+            q.set_objective(objective)
+            constraint1 = (matrix([[3,1],[1,3]])*x[1] + matrix([[0,0,0],[0,0,0],[0,0,0]])*x[2] + matrix([[1,0],[0,0]])*x[3]).tr() == 1
+            q.add_constraint(constraint1)
+            constraint2 = (matrix([[0,0],[0,0]])*x[1] + matrix([[3,0,1],[0,4,0],[1,0,5]])*x[2] + matrix([[0,0],[0,1]])*x[3]).tr() == 2
+            q.add_constraint(constraint2)
+            q.solve()
+            print "objective value: ", p.get_objective_value()
+            print "X_1 = ", p.get_variable_value(x[1])
+            print "X_2 = ", p.get_variable_value(x[2])
+            print "X_3 = ", p.get_variable_value(x[3])
     """
     
     def __init__(self, primal = True, solver = 'cvxopt'):
@@ -1225,7 +2112,8 @@ class SemidefiniteProgram(SageObject):
         
         self.Primal = primal
         self.Solver = solver.lower()
-        self.Interface = sdp(self.Solver)
+        #self.Interface = sdp(self.Solver)
+        self.solved = False
         self.ConstraintsSize = []
         self.NumConstraints = 0
         self.HasBlockMat = False
@@ -1234,6 +2122,17 @@ class SemidefiniteProgram(SageObject):
         self.C = BlockMat()
         self.A = []
         self.variables = {}
+        self.var_ord = []
+        
+        ## Choosing the backend ##
+        if self.Solver == 'cvxopt':
+            self.Backend = CvxOptBackend()
+        elif self.Solver == 'csdp':
+            self.Backend = CsdpBackend()
+        elif self.Solver == 'sedumi':
+            self.Backend = SeDuMiBackend()
+        elif self.Solver == 'sdpnal':
+            self.Backend = SDPNALBackend()
         
     def new_variable(self, name= ""):
         v = FormalVariable(name = name, obj = self)
@@ -1260,6 +2159,7 @@ class SemidefiniteProgram(SageObject):
         
         ## Check if the objective is given as a formal expression:
         if isinstance(Objective, FormalExpression):  # constant term of objective?
+            Objective.ord()
             M = Objective._dict.values()
         else:
             ## Otherwise:
@@ -1277,6 +2177,8 @@ class SemidefiniteProgram(SageObject):
             self.a = converted_M[0].tolist()[0]
         ## Dual case:
         else:
+            if isinstance(M, list):
+                M = BlockMat(M)
             if isinstance(M, BlockMat):
                 self.C = M
                 self.HasBlockMat = True
@@ -1336,6 +2238,7 @@ class SemidefiniteProgram(SageObject):
                 ## If the constraint is in the reduced format
                 if not Constraint.reduced:
                     Constraint.reduce()
+                    Constraint.ord()
                 t_dict = Constraint._dict
                 if t_dict.has_key(-1):
                     M2 = (-1*sgn)*t_dict.pop(-1)
@@ -1388,6 +2291,8 @@ class SemidefiniteProgram(SageObject):
         
         ## SDP in dual form
         else:
+            if isinstance(M1, list):
+                M1 = BlockMat(M1)
             if not is_constant(M2):
                 ErrorString = "A constraint in dual semidefinite program is of the form tr(A*X) = a\n"
                 ErrorString += "The second argument should be a real number."
@@ -1420,6 +2325,53 @@ class SemidefiniteProgram(SageObject):
                     self.ConstraintsSize.append(converted_M1.shape[0])
             self.a.append(M2)
         return
+    
+    def solver_parameter(self, name, value = None):
+        """
+        Initializes a parameter for the solver (if exists).
+        """
+        
+        self.Backend.solver_parameter(name, value)
+    
+    def get_objective_value(self):
+        """
+        Returns the value of the objective function.
+        """
+        
+        if self.solved:
+            res = self.Backend.get_objective_value()
+            return (res[0] if self.Primal else res[1])
+        else:
+            ErrorString = "Run the solve() method first!"
+            raise ValueError(ErrorString)
+    
+    def get_variable_value(self, var):
+        """
+        Returns the value of a variable given by the solver.
+        """
+        
+        if not self.solved:
+            ErrorString = "Run the solve() method first!"
+            raise ValueError(ErrorString)
+            
+        if isinstance(var, FormalExpression):
+            num = var._dict.keys()[0]
+            try:
+                self.var_ord.remove(-1)
+            except:
+                pass
+            if num in self.var_ord:
+                num = self.var_ord.index(num)
+            else:
+                ErrorString = "The solver did not return a value for the requested variable."
+                raise ValueError(ErrorString)
+        else:
+            num = var
+        if self.solved:
+            return self.Backend.get_variable_value(num, p_type = self.Primal)
+        else:
+            ErrorString = "Run the solve() method first!"
+            raise ValueError(ErrorString)
     
     def solve(self):
         """
@@ -1457,16 +2409,18 @@ class SemidefiniteProgram(SageObject):
         if self.Primal:
             for Obj in self.A:
                 A_Blocks.append(Obj.Blocks)
-            self.Interface.solve(self.C.Blocks, self.a, A_Blocks)
+            self.Backend.solve(self.C.Blocks, self.a, A_Blocks)
         
         ## SDP in dual form:
         else:
             if self.HasBlockMat:
                 for Obj in self.A:
                     A_Blocks.append(Obj.Blocks)
-                self.Interface.solve(self.C.Blocks, self.a, A_Blocks)
+                self.Backend.solve(self.C.Blocks, self.a, A_Blocks)
             else:
-                self.Interface.solve(self.C, self.a, self.A)
+                self.Backend.solve(self.C, self.a, self.A)
         
-        self.Result = self.Interface.Info
+        self.solved = True
+        
+        self.Result = self.Backend.Info
         return self.Result
