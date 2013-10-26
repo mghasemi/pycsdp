@@ -663,6 +663,16 @@ class BlockMat:
         for A in M:
             self.add_block(A)
         
+    def __repr__(self):
+        """
+        Returns a string representation of block matrix.
+        """
+        
+        t = ""
+        for M in self.Blocks:
+            t += str(M) + ";"
+        return t
+        
     def add_block(self, M):
         """
         Appends a square block 'M' at the end of current block matrix.
@@ -2134,6 +2144,93 @@ class SemidefiniteProgram(SageObject):
         elif self.Solver == 'sdpnal':
             self.Backend = SDPNALBackend()
         
+    def __repr__(self):
+        """
+        Returns a string representation of the semidefinite program.
+        """
+        
+        t = ""
+        if self.Primal:
+            t = "minimize "
+            for i in range(len(self.a)):
+                sgn = ('-' if self.a[i]<0 else '+')
+                t += (sgn + str(abs(self.a[i])) + '* y[' + str(i) + ']')
+            t += '\n' + 'subject to:\n'
+            N1 = len(self.A)
+            for i in range(N1):
+                N2 = len(self.A[i].Blocks)
+                for j in range(N2):
+                    t += ('' if j==0 else '+') + str(Matrix(self.A[i].Blocks[j])) + '* y[' + str(j) + ']'
+                t += ' >= ' + str(Matrix(self.C.Blocks[i]))
+                t += '\n'
+        else:
+            N0 = self.C.NumBlocks
+            s = "["
+            for i in range(N0):
+                s += " X[" + str(i) + "] "
+            s += "]^T"
+            t = "mazimize " + str(matrix_converter(self.C.Block2Matrix(), 'sage')) + "*" + s
+            t += '\n' + 'subject to:\n'
+            for i in range(len(self.A)):
+                t += "Tr" + str(matrix_converter(self.C.Block2Matrix(), 'sage')) + "*" + s + " = " + str(self.a[i]) + '\n'
+        return t
+                
+    def _latex_(self):
+        """
+        Returns the LaTeX string representation of the object.
+        """
+        
+        t = ""
+        ## Primal representation:
+        if self.Primal:
+            ## Writing the program:
+            t = "\\left\\lbrace\\begin{array}{ll}"
+            t += "minimize &"
+            N0 = len(self.a)
+            for i in range(N0):
+                sgn = ('-' if self.a[i]<0 else '+')
+                t += (sgn + str(abs(self.a[i])) + ' y_{' + str(i) + '}')
+            t += '\\\\' + 'subject \\  to: & \\\\ & '
+            N1 = len(self.A)
+            N2 = len(self.A[0].Blocks)
+            for j in range(N2):
+                for i in range(N1):
+                    t += ('' if i==0 else '+') + latex(Matrix(self.A[i].Blocks[j])) + ' y_{' + str(i) + '}'
+                t += ' \\ge ' + latex(Matrix(self.C.Blocks[j]))
+                t += '\\\\ & '
+            t += "\\end{array}\\right."
+            ## Writing the solution:
+            if self.solved:
+                t += "Solution: \\left\\lbrace\\begin{array}{rcl} Objective & = & " + str(self.get_objective_value()) + "\\\\ Variables: & \\\\"
+                for i in range(N0):
+                    t += "y_{" + str(i) +"} & = & " + str(self.get_variable_value(i)) + "\\\\"
+                t += "\\end{array}\\right."
+        ## Dual representaion:
+        else:
+            ## Writing the program:
+            t = "\\left\\lbrace\\begin{array}{ll}"
+            t +=  "maximize & Tr" + latex(matrix_converter(self.C.Block2Matrix(), 'sage'))
+            t += "\\times"
+            
+            s = "\\left(\\begin{array}{c}"
+            N0 = self.C.NumBlocks
+            for i in range(N0):
+                s += "X_{" + str(i) + "}\\\\"
+            s += "\\end{array}\\right)"
+            
+            t += s + "\\\\"
+            t += "subject \\ to: & \\\\ & "
+            for i in range(len(self.A)):
+                t += "Tr" + latex(matrix_converter(self.C.Block2Matrix(), 'sage')) + "\\times" + s + " = " + str(self.a[i]) + "\\\\ &"
+            t += "\\end{array}\\right."
+            ## Writing the solution:
+            if self.solved:
+                t += "Solution: \\left\\lbrace\\begin{array}{rcl} objective & = & " + str(self.get_objective_value()) + "\\\\ Variables: & \\\\"
+                for i in range(N0):
+                    t += "X_{" + str(i) + "} & = & " + latex(Matrix(self.get_variable_value(i))) + "\\\\"
+                t += "\\end{array}\\right."
+        return t
+    
     def new_variable(self, name= ""):
         v = FormalVariable(name = name, obj = self)
         num_vars = len(self.variables.keys())
