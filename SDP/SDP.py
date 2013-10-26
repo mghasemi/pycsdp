@@ -887,7 +887,7 @@ class sdp:
         return code
     
     def solve(self, C, a, A):
-        """
+        r"""
         Solves a semidefinite programming problem with entered data.
         
         Arguments:
@@ -1299,7 +1299,7 @@ class CsdpBackend:
             return self.Info['X'][var]
     
     def solve(self, C, a, A):
-        """
+        r"""
         Solves a semidefinite programming problem with entered data.
         
         Arguments:
@@ -1468,7 +1468,7 @@ class CvxOptBackend:
 
     
     def solve(self, C, a, A):
-        """
+        r"""
         Solves a semidefinite programming problem with entered data.
         
         Arguments:
@@ -1666,7 +1666,7 @@ class SeDuMiBackend:
 
     
     def solve(self, C, a, A):
-        """
+        r"""
         Solves a semidefinite programming problem with entered data.
         
         Arguments:
@@ -1865,7 +1865,7 @@ class SDPNALBackend:
 
     
     def solve(self, C, a, A):
-        """
+        r"""
         Solves a semidefinite programming problem with entered data.
         
         Arguments:
@@ -2003,7 +2003,7 @@ class SDPNALBackend:
 ########################## Semidefinite Program class ##########################
 
 class SemidefiniteProgram(SageObject):
-    """
+    r"""
     The 'SemidefiniteProgram' class provides a user friendly interface to solve
     primal or dual semidefinite programming (sdp) problems within Sage.
     
@@ -2188,7 +2188,7 @@ class SemidefiniteProgram(SageObject):
             t += "minimize &"
             N0 = len(self.a)
             for i in range(N0):
-                sgn = ('-' if self.a[i]<0 else '+')
+                sgn = ('-' if self.a[i]<0 else ('' if i==0 else '+'))
                 t += (sgn + str(abs(self.a[i])) + ' y_{' + str(i) + '}')
             t += '\\\\' + 'subject \\  to: & \\\\ & '
             N1 = len(self.A)
@@ -2201,10 +2201,12 @@ class SemidefiniteProgram(SageObject):
             t += "\\end{array}\\right."
             ## Writing the solution:
             if self.solved:
-                t += "Solution: \\left\\lbrace\\begin{array}{rcl} Objective & = & " + str(self.get_objective_value()) + "\\\\ Variables: & \\\\"
+                t = "\\begin{array}{l}" + t + "\\\\Solution: \\\\"
+                t += "\\left\\lbrace\\begin{array}{rcl} Objective & = & " + str(self.get_objective_value()) + "\\\\ Variables: & \\\\"
                 for i in range(N0):
                     t += "y_{" + str(i) +"} & = & " + str(self.get_variable_value(i)) + "\\\\"
                 t += "\\end{array}\\right."
+                t += "\\end{array}"
         ## Dual representaion:
         else:
             ## Writing the program:
@@ -2225,10 +2227,12 @@ class SemidefiniteProgram(SageObject):
             t += "\\end{array}\\right."
             ## Writing the solution:
             if self.solved:
-                t += "Solution: \\left\\lbrace\\begin{array}{rcl} objective & = & " + str(self.get_objective_value()) + "\\\\ Variables: & \\\\"
+                t = "\\begin{array}{l}" + t + "\\\\Solution: \\\\"
+                t += "\\left\\lbrace\\begin{array}{rcl} objective & = & " + str(self.get_objective_value()) + "\\\\ Variables: & \\\\"
                 for i in range(N0):
                     t += "X_{" + str(i) + "} & = & " + latex(Matrix(self.get_variable_value(i))) + "\\\\"
                 t += "\\end{array}\\right."
+                t += "\\end{array}"
         return t
     
     def new_variable(self, name= ""):
@@ -2294,7 +2298,7 @@ class SemidefiniteProgram(SageObject):
         ##############################################################
         
     def add_constraint(self, Constraint, M2 = None):
-        """
+        r"""
         Adds a constraint to the 'SemidefiniteProgram'.
         
         Arguments:
@@ -2471,7 +2475,7 @@ class SemidefiniteProgram(SageObject):
             raise ValueError(ErrorString)
     
     def solve(self):
-        """
+        r"""
         Solves the 'SemidefiniteProgram'.
         
         Argument:
