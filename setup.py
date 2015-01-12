@@ -18,7 +18,7 @@ setup(
     url = 'https://github.com/mghasemi/SDP.git',
     license = 'GNU GNU Public License (GPL)',
     description = 'A generic python wraper for SDP solvers.',
-    long_description = open('README.txt').read(),
+    long_description = open('README.md').read(),
 )
 
 ext_modules = [Extension("cpycsdp", sourcefiles,
@@ -26,6 +26,8 @@ ext_modules = [Extension("cpycsdp", sourcefiles,
 				define_macros = [('NOSHORTS',None)],
 				include_dirs = [CSDP_INCLUDES, numpy.get_include()],
 				libraries = ["sdp", "lapack", "blas", "gfortran", "m"])]
+
+# For Sage 6.5+ use libraries = ["sdp", "atlas", "gfortran", "m"]) instead.
 
 setup(
 	name = 'cpycsdp',
